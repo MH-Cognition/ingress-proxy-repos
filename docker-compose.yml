@@ -1,0 +1,118 @@
+version: "3.9"
+
+services:
+
+  # --------------------
+  # Infrastructure
+  # --------------------
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # 🔴 FIXED: DO NOT use localhost inside Docker
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    
+
+
+  # --------------------
+  # API Gateway
+  # --------------------
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/api-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - identity
+      - tenant
+      - notification
+  
+  
+
+  # --------------------
+  # Application Services
+  # --------------------
+  identity:
+    image: identity-service:latest
+    environment:
+      AWS_PROFILE: cognito-role
+    container_name: identity
+    expose:
+      - "8080"
+    env_file:
+      - ../Identity-Service/identity-service/.env
+    depends_on:
+      - postgres
+      - kafka
+      - zookeeper
+    volumes:
+      - ~/.aws:/root/.aws:ro
+  tenant:
+    image: tenant-service:latest
+    environment:
+      AWS_PROFILE: cognito-role
+      AWS_REGION: ap-south-1
+    container_name: tenant
+    expose:
+      - "8080"
+    env_file:
+      - ../Tenant-Service/tenant-service/.env
+    depends_on:
+      - postgres
+      - kafka
+      - zookeeper
+    volumes:
+      - ~/.aws:/root/.aws:ro
+
+
+  notification:
+    image: notification-service:latest
+    environment:
+      AWS_PROFILE: ses-notification
+    container_name: notification
+    expose:
+      - "8080"
+    env_file:
+      - ../Notification-Service/notification-service/.env
+    depends_on:
+      - postgres
+      - kafka
+      - zookeeper
+    volumes:
+      - ~/.aws:/root/.aws:ro
+
+
+volumes:
+  pg_data:
