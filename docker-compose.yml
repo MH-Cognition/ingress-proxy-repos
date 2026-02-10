@@ -95,8 +95,6 @@ services:
       - zookeeper
     volumes:
       - ~/.aws:/root/.aws:ro
-
-
   notification:
     image: notification-service:latest
     environment:
@@ -106,6 +104,22 @@ services:
       - "8080"
     env_file:
       - ../Notification-Service/notification-service/.env
+    depends_on:
+      - postgres
+      - kafka
+      - zookeeper
+    volumes:
+      - ~/.aws:/root/.aws:ro
+  institution:
+    image: institution-core-service:latest
+    environment:
+      AWS_PROFILE: cognito-role
+      AWS_REGION: ap-south-1
+    container_name: institution
+    expose:
+      - "8080"
+    env_file:
+      - ../Institution-Core-Service/institution-core-service/.env
     depends_on:
       - postgres
       - kafka
