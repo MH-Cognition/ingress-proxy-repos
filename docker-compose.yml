@@ -58,6 +58,7 @@ services:
       - identity
       - tenant
       - notification
+      - institution
   
   
 
