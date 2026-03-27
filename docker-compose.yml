@@ -137,7 +137,7 @@ services:
   media:
     image: media-service:latest
     environment:
-      AWS_PROFILE: cognito-role
+      AWS_PROFILE: s3role
       AWS_REGION: ap-south-1
     container_name: media
     expose:
